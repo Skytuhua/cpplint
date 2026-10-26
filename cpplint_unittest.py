@@ -2706,7 +2706,7 @@ class TestCpplint(CpplintTestBase):
             "line_continuation or", "Use operator || instead of or  [readability/alt_tokens] [2]"
         )
         self.TestLint(
-            "if(true and(parentheses",
+            "if (true and(parentheses",
             "Use operator && instead of and  [readability/alt_tokens] [2]",
         )
 
@@ -2978,6 +2978,43 @@ class TestCpplint(CpplintTestBase):
             "Controlled statements inside brackets of if clause should be on a separate line"
             "  [whitespace/newline] [5]",
         )
+
+    @pytest.mark.parametrize("keyword", ["if", "for", "while", "switch"])
+    @pytest.mark.parametrize("prefix", ["", "  ", "\t"])
+    def testMissingSpaceBeforeControlParenthesis(self, keyword, prefix):
+        error_collector = ErrorCollector(self.assertTrue)
+        clean_lines = cpplint.CleansedLines([f"{prefix}{keyword}(condition) {{"])
+        cpplint.CheckParenthesisSpacing("foo.cc", clean_lines, 0, error_collector)
+        assert error_collector.Results() == (
+            f"Missing space before ( in {keyword}(  [whitespace/parens] [5]"
+        )
+
+    @pytest.mark.parametrize("keyword", ["if", "for", "while", "switch"])
+    @pytest.mark.parametrize("prefix", ["", "  ", "\t"])
+    @pytest.mark.parametrize(
+        "code",
+        [
+            "KEYWORD (condition) {",
+            "// KEYWORD(condition) {",
+            "/* KEYWORD(condition) { */",
+            'const char* text = "KEYWORD(condition) {";',
+            "my_KEYWORD(condition);",
+            "KEYWORD_handler(condition);",
+        ],
+    )
+    def testMissingSpaceBeforeControlParenthesisIgnoresNonKeywords(self, keyword, prefix, code):
+        error_collector = ErrorCollector(self.assertTrue)
+        clean_lines = cpplint.CleansedLines([prefix + code.replace("KEYWORD", keyword)])
+        cpplint.CheckParenthesisSpacing("foo.cc", clean_lines, 0, error_collector)
+        assert error_collector.Results() == ""
+
+    @pytest.mark.parametrize("directive", ["#if(condition)", "#elif(condition)"])
+    @pytest.mark.parametrize("prefix", ["", "  ", "\t"])
+    def testMissingSpaceBeforeControlParenthesisIgnoresPreprocessor(self, directive, prefix):
+        error_collector = ErrorCollector(self.assertTrue)
+        clean_lines = cpplint.CleansedLines([prefix + directive])
+        cpplint.CheckParenthesisSpacing("foo.cc", clean_lines, 0, error_collector)
+        assert error_collector.Results() == ""
 
     def testMismatchingSpacesInParens(self):
         self.TestLint("if (foo ) {", "Mismatching spaces inside () in if  [whitespace/parens] [5]")
