@@ -4549,7 +4549,7 @@ def CheckParenthesisSpacing(filename, clean_lines, linenum, error):
 
     # Require a space after if, while, switch, or for.
     match = re.search(r"(?:^|\s)(if\(|for\(|while\(|switch\()", line)
-    if match:
+    if match and not re.match(r"\s*#\s*if\b", line):
         error(
             filename, linenum, "whitespace/parens", 5, f"Missing space before ( in {match.group(1)}"
         )

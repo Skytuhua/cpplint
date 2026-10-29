@@ -2980,7 +2980,7 @@ class TestCpplint(CpplintTestBase):
         )
 
     @pytest.mark.parametrize("keyword", ["if", "for", "while", "switch"])
-    @pytest.mark.parametrize("prefix", ["", "  ", "\t"])
+    @pytest.mark.parametrize("prefix", ["", "  ", "\t", "#define CHECK() ", "#define CHECK() \t"])
     def testMissingSpaceBeforeControlParenthesis(self, keyword, prefix):
         error_collector = ErrorCollector(self.assertTrue)
         clean_lines = cpplint.CleansedLines([f"{prefix}{keyword}(condition) {{"])
@@ -3008,11 +3008,14 @@ class TestCpplint(CpplintTestBase):
         cpplint.CheckParenthesisSpacing("foo.cc", clean_lines, 0, error_collector)
         assert error_collector.Results() == ""
 
-    @pytest.mark.parametrize("directive", ["#if(condition)", "#elif(condition)"])
+    @pytest.mark.parametrize("directive", ["if", "elif"])
     @pytest.mark.parametrize("prefix", ["", "  ", "\t"])
-    def testMissingSpaceBeforeControlParenthesisIgnoresPreprocessor(self, directive, prefix):
+    @pytest.mark.parametrize("separator", ["", " ", "\t", " \t "])
+    def testMissingSpaceBeforeControlParenthesisIgnoresPreprocessor(
+        self, directive, prefix, separator
+    ):
         error_collector = ErrorCollector(self.assertTrue)
-        clean_lines = cpplint.CleansedLines([prefix + directive])
+        clean_lines = cpplint.CleansedLines([f"{prefix}#{separator}{directive}(condition)"])
         cpplint.CheckParenthesisSpacing("foo.cc", clean_lines, 0, error_collector)
         assert error_collector.Results() == ""
 
