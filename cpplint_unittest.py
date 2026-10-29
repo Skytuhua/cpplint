@@ -2980,24 +2980,44 @@ class TestCpplint(CpplintTestBase):
         )
 
     @pytest.mark.parametrize("keyword", ["if", "for", "while", "switch"])
-    @pytest.mark.parametrize("prefix", ["", "  ", "\t", "#define CHECK() ", "#define CHECK() \t"])
+    @pytest.mark.parametrize(
+        "prefix",
+        [
+            "",
+            "  ",
+            "\t",
+            "#define CHECK() ",
+            "#define CHECK() \t",
+            "/* KEYWORD(ignored) */ ",
+            'const char* text = "KEYWORD(ignored)"; ',
+            'const char* text = R"(KEYWORD(ignored))"; ',
+            "KEYWORD /* reason */(first) {} ",
+            "KEYWORD_handler(first); ",
+        ],
+    )
     def testMissingSpaceBeforeControlParenthesis(self, keyword, prefix):
         error_collector = ErrorCollector(self.assertTrue)
-        clean_lines = cpplint.CleansedLines([f"{prefix}{keyword}(condition) {{"])
+        code = prefix.replace("KEYWORD", keyword) + f"{keyword}(condition) {{"
+        clean_lines = cpplint.CleansedLines([code])
         cpplint.CheckParenthesisSpacing("foo.cc", clean_lines, 0, error_collector)
         assert error_collector.Results() == (
             f"Missing space before ( in {keyword}(  [whitespace/parens] [5]"
         )
 
     @pytest.mark.parametrize("keyword", ["if", "for", "while", "switch"])
-    @pytest.mark.parametrize("prefix", ["", "  ", "\t"])
+    @pytest.mark.parametrize("prefix", ["", "  ", "\t", "#define CHECK() "])
     @pytest.mark.parametrize(
         "code",
         [
             "KEYWORD (condition) {",
+            "KEYWORD /* reason */(condition) {",
+            "KEYWORD/* reason */(condition) {",
+            "KEYWORD/* first *//* second */(condition) {",
+            "/* KEYWORD(ignored) */ KEYWORD /* reason */(condition) {",
             "// KEYWORD(condition) {",
             "/* KEYWORD(condition) { */",
             'const char* text = "KEYWORD(condition) {";',
+            'const char* text = R"(KEYWORD(condition) {)";',
             "my_KEYWORD(condition);",
             "KEYWORD_handler(condition);",
         ],
@@ -3005,6 +3025,21 @@ class TestCpplint(CpplintTestBase):
     def testMissingSpaceBeforeControlParenthesisIgnoresNonKeywords(self, keyword, prefix, code):
         error_collector = ErrorCollector(self.assertTrue)
         clean_lines = cpplint.CleansedLines([prefix + code.replace("KEYWORD", keyword)])
+        cpplint.CheckParenthesisSpacing("foo.cc", clean_lines, 0, error_collector)
+        assert error_collector.Results() == ""
+
+    @pytest.mark.parametrize(
+        "code",
+        [
+            "i/**/f(condition);",
+            "f/**/or(condition);",
+            "whi/**/le(condition);",
+            "swi/**/tch(condition);",
+        ],
+    )
+    def testControlParenthesisDoesNotJoinTokensAcrossComments(self, code):
+        error_collector = ErrorCollector(self.assertTrue)
+        clean_lines = cpplint.CleansedLines([code])
         cpplint.CheckParenthesisSpacing("foo.cc", clean_lines, 0, error_collector)
         assert error_collector.Results() == ""
 
